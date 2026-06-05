@@ -1,0 +1,122 @@
+const mongoose = require('mongoose');
+const Card = require('../models/Card');
+const { validateCardBody, validateCardUpdateBody } = require('../middleware/validate');
+
+/**
+ * GET /api/cards
+ * Optional query: ?column=todo|doing|done
+ */
+exports.list = async (req, res, next) => {
+  try {
+    const filter = {};
+    if (req.query.column) {
+      if (!Card.COLUMNS.includes(req.query.column)) {
+        return res.status(400).json({
+          error: `column must be one of: ${Card.COLUMNS.join(', ')}`,
+        });
+      }
+      filter.column = req.query.column;
+    }
+    const cards = await Card.find(filter).sort({ createdAt: -1 });
+    res.json({ count: cards.length, cards });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/cards/:id
+ */
+exports.getOne = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid card id' });
+    }
+    const card = await Card.findById(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    res.json(card);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/cards
+ * Body: { text, column?, priority?, dueDate?, subtasks? }
+ */
+exports.create = async (req, res, next) => {
+  try {
+    const errors = validateCardBody(req.body);
+    if (errors.length) {
+      return res.status(400).json({ error: 'Validation failed', details: errors });
+    }
+    const card = await Card.create({
+      text: req.body.text.trim(),
+      column: req.body.column || 'todo',
+      priority: req.body.priority || 'medium',
+      dueDate: req.body.dueDate || '',
+      subtasks: Array.isArray(req.body.subtasks)
+        ? req.body.subtasks.map((s) => ({ text: s.text.trim(), done: !!s.done }))
+        : [],
+    });
+    res.status(201).json(card);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PUT /api/cards/:id
+ * Partial update — only fields present in body are changed.
+ * Body: any subset of { text, column, priority, dueDate, subtasks }
+ */
+exports.update = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid card id' });
+    }
+    const errors = validateCardUpdateBody(req.body);
+    if (errors.length) {
+      return res.status(400).json({ error: 'Validation failed', details: errors });
+    }
+
+    // Build the update object — only include fields actually sent
+    const update = {};
+    if (req.body.text !== undefined) update.text = req.body.text.trim();
+    if (req.body.column !== undefined) update.column = req.body.column;
+    if (req.body.priority !== undefined) update.priority = req.body.priority;
+    if (req.body.dueDate !== undefined) update.dueDate = req.body.dueDate || '';
+    if (req.body.subtasks !== undefined) {
+      update.subtasks = req.body.subtasks.map((s) => ({
+        text: s.text.trim(),
+        done: !!s.done,
+      }));
+    }
+
+    const card = await Card.findByIdAndUpdate(req.params.id, update, {
+      new: true,            // return the updated doc, not the old one
+      runValidators: true,  // run Mongoose schema validators on the update
+    });
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    res.json(card);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/cards/:id
+ * Removes the card permanently.
+ */
+exports.remove = async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid card id' });
+    }
+    const card = await Card.findByIdAndDelete(req.params.id);
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    res.status(204).end(); // 204 No Content — success, nothing to return
+  } catch (err) {
+    next(err);
+  }
+};
