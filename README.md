@@ -25,6 +25,8 @@ A RESTful backend API for the [Velocity Kanban board](https://github.com/Scuuff/
 
 ## API endpoints
 
+### Cards
+
 | Method | URL | Description | Body | Returns |
 |---|---|---|---|---|
 | `GET` | `/` | Health check | — | `200` `{ name, status, docs }` |
@@ -33,6 +35,18 @@ A RESTful backend API for the [Velocity Kanban board](https://github.com/Scuuff/
 | `POST` | `/api/cards` | Create a card | `{ text, column?, priority?, dueDate?, subtasks? }` | `201` created card |
 | `PUT` | `/api/cards/:id` | Partial update of a card | any subset of the above fields | `200` updated card |
 | `DELETE` | `/api/cards/:id` | Delete a card | — | `204 No Content` |
+
+### Events (activity log)
+
+| Method | URL | Description | Returns |
+|---|---|---|---|
+| `GET` | `/api/events?limit=20` | Recent activity events, newest first. Auto-logged by the cards controller on every CRUD operation. Types: `created`, `moved`, `updated`, `subtask_toggled`, `deleted`. | `200` `{ count, events: [...] }` |
+
+### Stats
+
+| Method | URL | Description | Returns |
+|---|---|---|---|
+| `GET` | `/api/stats/completions?days=14` | Daily completion counts for cards **currently in Done**, bucketed by the day they most recently became done. Backfills missing days with `0`. | `200` `{ days, total, max, series: [{ date, weekday, count }] }` |
 
 ### Card schema
 
