@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const cardRoutes = require('./routes/cards');
+const eventRoutes = require('./routes/events');
+const statsRoutes = require('./routes/stats');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,12 +18,14 @@ app.get('/', (req, res) => {
   res.json({
     name: 'velocity-api',
     status: 'ok',
-    docs: 'Available endpoints: GET /api/cards, GET /api/cards/:id, POST /api/cards, PUT /api/cards/:id, DELETE /api/cards/:id',
+    docs: 'Endpoints: GET/POST/PUT/DELETE /api/cards, GET /api/events',
   });
 });
 
 // API routes
 app.use('/api/cards', cardRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/stats', statsRoutes);
 
 // 404 handler
 app.use((req, res) => {
